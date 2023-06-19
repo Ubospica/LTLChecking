@@ -1,6 +1,7 @@
 from ltl_parser import LTLLangParser, LTLLangVisitor, LTLLangParser
 
 
+# AST definition
 class LTLNode:
     def tostr(self) -> str:
         return str(self) if isinstance(self, Atomic) else "(" + str(self) + ")"
@@ -135,6 +136,7 @@ class LTLVisitor:
 
 
 class LTLSimplifier(LTLVisitor):
+    """Simplify an AST"""
     def visit(self, expr: LTLNode):
         if isinstance(expr, Atomic):
             return expr
@@ -175,6 +177,7 @@ class LTLSimplifier(LTLVisitor):
 
 
 def parse_ltl_formula(formula: str) -> LTLNode:
+    """From string formula to an simplified LTL AST"""
     from ltl_parser.LTLLangLexer import LTLLangLexer
     from ltl_parser.LTLLangParser import LTLLangParser
     from antlr4 import CommonTokenStream, InputStream

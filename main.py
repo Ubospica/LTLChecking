@@ -1,13 +1,14 @@
 import sys
 from typing import TextIO
-from debug import dbgprint
 
+from debug import dbgprint
 from ltl_ast import parse_ltl_formula
 from ts import TS
 from verification import check_satisfy_ltl
 
 
 def getints(fd: TextIO):
+    """Input a list of integers in one line"""
     return [int(i) for i in fd.readline().split()]
 
 
@@ -51,10 +52,10 @@ def get_LTLs(fd: TextIO):
 
 
 def main():
-    ts_file = sys.stdin
-    ltl_file = sys.stdin
-    # ts_file = open("TS.txt", "r")
-    # ltl_file = open("benchmark.txt", "r")
+    # ts_file = sys.stdin
+    # ltl_file = sys.stdin
+    ts_file = open("TS.txt", "r")
+    ltl_file = open("benchmark.txt", "r")
     ts = get_TS(ts_file)
     ltls = get_LTLs(ltl_file)
     dbgprint("ts: ", ts)

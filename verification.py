@@ -43,6 +43,7 @@ def prod_ts_nba(ts: TS, nba: NBA) -> Tuple[TS, PhiType]:
 
 
 def persistance_checking(ts: TS, phi: PhiType) -> Tuple[bool, List[ts_module.StateType]]:
+    """Check TS |= P_pers(phi)"""
     stack_out = []
     visited_out = set()
     stack_in = []

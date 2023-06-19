@@ -7,6 +7,11 @@ TransitionType = Dict[StateType, Dict[ActType, Set[StateType]]]
 
 
 class TS:
+    """Transition system
+
+    transitions: Can be a list of tuples (s, a, t) or a dictionary (s -> a -> {t})
+    """
+
     def __init__(
         self,
         states: List[StateType],
@@ -51,6 +56,7 @@ class TS:
 )"""
 
     def with_init(self, init_states: Set[StateType]):
+        """Returns a copy of the TS with the given initial states"""
         return TS(
             self.states, init_states, self.acts, self.propositions, self.transitions, self.labels
         )
