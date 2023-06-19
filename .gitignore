@@ -2,3 +2,4 @@
 benchmark.txt
 TS.txt
 __pycache__/
+.coverage

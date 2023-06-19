@@ -1,5 +1,6 @@
 import itertools
-from typing import List, Set, Tuple
+from typing import FrozenSet, List, Set, Tuple
+from debug import dbgprint
 
 from ltl_ast import *
 from nba import GNBA, NBA
@@ -7,11 +8,14 @@ from ts import LabelType
 
 
 ClosureType = List[Tuple[LTLNode, LTLNode]]  # [(node, Negation(node))]
-ElementSetType = List[Set[LTLNode]]
+ElementSetType = List[FrozenSet[LTLNode]]
 
 
-def powerset(ap: List[LabelType]) -> List[Set[LabelType]]:
-    return sum((list(itertools.combinations(ap, n)) for n in range(len(ap) + 1)), [])
+def powerset(ap: List[LabelType]) -> List[FrozenSet[LabelType]]:
+    return map(
+        lambda x: frozenset(x),
+        sum((list(itertools.combinations(ap, n)) for n in range(len(ap) + 1)), []),
+    )
 
 
 class ClosureFinder(LTLVisitor):
@@ -57,8 +61,11 @@ def is_consistant(formulas: Set[LTLNode], closure: ClosureType) -> bool:
     return True
 
 
-def get_element_set(ltl: LTLNode) -> Tuple[ElementSetType, ClosureType]:
+def get_element_set(ltl: LTLNode, ap: Set[LabelType]) -> Tuple[ElementSetType, ClosureType]:
     closure, have_constant = ClosureFinder.find(ltl)
+    closure = list(
+        set(closure + [(AtomicProposition(i), Negation(AtomicProposition(i))) for i in ap])
+    )
     iter = itertools.product(*([[0, 1]] * len(closure)))
     element_set = []
     for choice in iter:
@@ -68,36 +75,33 @@ def get_element_set(ltl: LTLNode) -> Tuple[ElementSetType, ClosureType]:
         if have_constant:
             formulas.add(Constant(True))
         if is_consistant(formulas, closure):
-            element_set.append(formulas)
+            element_set.append(frozenset(formulas))
     return element_set, closure
 
-    # def __init__(
-    #     self,
-    #     states: List[StateType],
-    #     alphabet: List[AlphabetType],
-    #     transitions: Union[
-    #         List[Tuple[StateType, AlphabetType, StateType]],
-    #         Dict[StateType, List[Tuple[AlphabetType, StateType]]],
-    #     ],
-    #     initial: Set[StateType],
-    #     finals: List[Set[StateType]],
-    # ):
+
+def formula_set_intersect_ap(formulas: FrozenSet[LTLNode], ap: Set[LabelType]):
+    """LabelType == str"""
+    return frozenset(
+        formula.name
+        for formula in formulas
+        if isinstance(formula, AtomicProposition) and formula.name in ap
+    )
 
 
 def ltl2gnba(ltl: LTLNode, ap: Set[LabelType]) -> GNBA:
     """convert an LTL formula to a GNBA"""
-    states, closure = get_element_set(ltl)
+    states, closure = get_element_set(ltl, ap)
     alphabet = powerset(ap)
     initial = set(state for state in states if ltl in state)
     finals = []
     for formula, _ in closure:
         if isinstance(formula, Until):
             finals.append(
-                set(state for state in states if formula not in state and formula.right in state)
+                set(state for state in states if formula not in state or formula.right in state)
             )
     transitions = []
     for start in states:
-        alpha = start.intersection(ap)
+        alpha = formula_set_intersect_ap(start, ap)
         for end in states:
             flag = True
             for formula, _ in closure:
@@ -107,7 +111,7 @@ def ltl2gnba(ltl: LTLNode, ap: Set[LabelType]) -> GNBA:
                         break
                 elif isinstance(formula, Until):
                     if (formula in start) != (
-                        formula.left in end or formula.right in end or formula in end
+                        formula.right in start or (formula.left in start and formula in end)
                     ):
                         flag = False
                         break
@@ -118,7 +122,10 @@ def ltl2gnba(ltl: LTLNode, ap: Set[LabelType]) -> GNBA:
 
 def ltl2nba(ltl: LTLNode, ap: Set[LabelType]) -> NBA:
     gnba = ltl2gnba(ltl, ap)
-    return gnba.to_nba()
+    dbgprint("GNBA: ", gnba)
+    nba = gnba.to_nba()
+    dbgprint("NBA: ", nba)
+    return nba
 
 
 if __name__ == "__main__":

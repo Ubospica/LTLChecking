@@ -1,4 +1,3 @@
-from sympy import LT
 from ltl_parser import LTLLangParser, LTLLangVisitor, LTLLangParser
 
 

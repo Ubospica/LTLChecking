@@ -1,8 +1,10 @@
-from typing import TextIO
 import sys
+from typing import TextIO
+from debug import dbgprint
 
 from ltl_ast import parse_ltl_formula
 from ts import TS
+from verification import check_satisfy_ltl
 
 
 def getints(fd: TextIO):
@@ -41,7 +43,7 @@ def get_LTLs(fd: TextIO):
             res.append((-1, fd.readline()))
         for _ in range(n_state_formula):
             start, formula = fd.readline().split(maxsplit=1)
-            res.append((start, formula))
+            res.append((int(start), formula))
     except (ValueError, IndexError):
         print("Error: Invalid input")
         raise
@@ -49,14 +51,23 @@ def get_LTLs(fd: TextIO):
 
 
 def main():
-    # ts_file = sys.stdin
-    # ltl_file = sys.stdin
-    ts_file = open("TS.txt", "r")
-    ltl_file = open("benchmark.txt", "r")
+    ts_file = sys.stdin
+    ltl_file = sys.stdin
+    # ts_file = open("TS.txt", "r")
+    # ltl_file = open("benchmark.txt", "r")
     ts = get_TS(ts_file)
     ltls = get_LTLs(ltl_file)
-    print(ts)
-    print(ltls)
+    dbgprint("ts: ", ts)
+    dbgprint("ltls: ", ltls)
+
+    for start, ltl in ltls:
+        if start == -1:
+            ts_new = ts
+        else:
+            ts_new = ts.with_init({ts.states[start]})
+        res = check_satisfy_ltl(ts_new, ltl)
+        print(1 if res[0] else 0)
+        dbgprint(res[1])
 
 
 if __name__ == "__main__":

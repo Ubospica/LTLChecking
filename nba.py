@@ -1,7 +1,9 @@
-from typing import Any, Dict, List, Set, Tuple, Union
+from sre_parse import State
+from typing import Any, Dict, Iterator, List, Set, Tuple, Union
 
 StateType = Any
 AlphabetType = Any
+TransitionType = Dict[StateType, Dict[AlphabetType, Set[StateType]]]
 
 
 class NBA:
@@ -10,28 +12,29 @@ class NBA:
     def __init__(
         self,
         states: List[StateType],
-        alphabet: List[AlphabetType],
+        alphabet: Set[AlphabetType],
         transitions: Union[
             List[Tuple[StateType, AlphabetType, StateType]],
-            Dict[StateType, List[Tuple[AlphabetType, StateType]]],
+            TransitionType,
         ],
         initial: Set[StateType],
         final: Set[StateType],
     ):
         self.states = states
-        self.alphabet = alphabet
-        self.initial = initial if isinstance(initial, set) else set(initial)
-        self.final = final if isinstance(final, set) else set(final)
+        self.alphabet = set(alphabet)
+        self.initial = set(initial)
         if isinstance(transitions, List):
-            self.transitions = {}
-            for (s, t, a) in transitions:
-                if s not in self.transitions:
-                    self.transitions[s] = []
-                self.transitions[s].append((t, a))
+            self.transitions: TransitionType = {s: {} for s in states}
+            for s, a, t in transitions:
+                if a not in self.transitions[s]:
+                    self.transitions[s][a] = set()
+                self.transitions[s][a].add(t)
         else:
             self.transitions = transitions
 
-    def __str__(self):
+        self.final = set(final)
+
+    def __repr__(self):
         return f"""NBA(
     states={self.states},
     alphabet={self.alphabet},
@@ -40,35 +43,45 @@ class NBA:
     final={self.final}
 )"""
 
+    def all_edges(self) -> Iterator[Tuple[StateType, AlphabetType, StateType]]:  # type: ignore
+        """Returns all edges of the automaton"""
+        for s, edges in self.transitions.items():
+            for a, t_set in edges.items():
+                for t in t_set:
+                    yield (s, a, t)
 
-class GNBA:
+
+class GNBA(NBA):
     """Generalized Nondeterministic Büchi Automaton"""
 
     def __init__(
         self,
         states: List[StateType],
-        alphabet: List[AlphabetType],
+        alphabet: Set[AlphabetType],
         transitions: Union[
             List[Tuple[StateType, AlphabetType, StateType]],
-            Dict[StateType, List[Tuple[AlphabetType, StateType]]],
+            TransitionType,
         ],
         initial: Set[StateType],
         finals: List[Set[StateType]],
     ):
         self.states = states
-        self.alphabet = alphabet
-        self.initial = initial if isinstance(initial, set) else set(initial)
-        self.finals = [final if isinstance(final, set) else final for final in finals]
+        self.alphabet = set(alphabet)
+        self.initial = set(initial)
         if isinstance(transitions, List):
-            self.transitions = {}
-            for (s, a, t) in transitions:
-                if s not in self.transitions:
-                    self.transitions[s] = []
-                self.transitions[s].append((a, t))
+            self.transitions: TransitionType = {s: {} for s in states}
+            for s, a, t in transitions:
+                if a not in self.transitions[s]:
+                    self.transitions[s][a] = set()
+                self.transitions[s][a].add(t)
         else:
             self.transitions = transitions
 
-    def __str__(self):
+        self.finals = list(map(lambda x: set(x), finals))
+        if len(self.finals) == 0:
+            self.finals.append(set(self.states))
+
+    def __repr__(self):
         return f"""GNBA(
     states={self.states},
     alphabet={self.alphabet},
@@ -81,16 +94,13 @@ class GNBA:
         """Converts a GNBA to an NBA"""
         n_finals = len(self.finals)
         states = [(q, i) for q in self.states for i in range(n_finals)]
-        initial = [(q, 1) for q in self.initial]
-        final = [(q, 1) for q in self.finals[0]]
+        initial = [(q, 0) for q in self.initial]
+        final = [(q, 0) for q in self.finals[0]]
         alphabet = self.alphabet
         transitions = []
         for i in range(n_finals):
-            for s, edges in self.transitions.items():
+            for s, a, t in self.all_edges():
                 enter_new_g = s in self.finals[i]
-                for a, t in edges:
-                    new_t = (
-                        (t, i) if not enter_new_g else (t, i + 1) if i + 1 < n_finals else (t, 0)
-                    )
-                    transitions.add(((s, i), a, new_t))
+                new_t = (t, i) if not enter_new_g else (t, i + 1) if i + 1 < n_finals else (t, 0)
+                transitions.append(((s, i), a, new_t))
         return NBA(states, alphabet, transitions, initial, final)
